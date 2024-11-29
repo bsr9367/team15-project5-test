@@ -20,13 +20,13 @@ jobs:
          docker exec client-container apt-get update
          docker exec client-container apt-get install -y dnsutils iputils-ping net-tools
          
-      - name: Basic Container Test
-        run: |
-          docker compose up -d
-          docker ps
-          docker network ls
-          docker inspect server-container | grep IPAddress
-          docker inspect client-container | grep IPAddress
+     - name: Basic Container Test
+       run: |
+         docker compose up -d
+         docker ps
+         docker network ls
+         docker inspect server-container | grep IPAddress
+         docker inspect client-container | grep IPAddress
      
      - name: Debug Network
        run: |
