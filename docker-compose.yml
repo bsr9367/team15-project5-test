@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile.server
     container_name: server-container
     networks:
-      custom:
+      compose_net:
         ipv4_address: 172.20.0.2
     volumes:
       - shared:/shared
@@ -17,7 +17,7 @@ services:
       dockerfile: Dockerfile.client
     container_name: client-container
     networks:
-      custom:
+      compose_net:
         ipv4_address: 172.20.0.3
     volumes:
       - shared:/shared
@@ -26,7 +26,7 @@ services:
 
 networks:
   custom:
-    name: custom
+    name: compose_net
     driver: bridge
     ipam:
       driver: default
