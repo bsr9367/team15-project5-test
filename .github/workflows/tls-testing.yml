@@ -38,8 +38,8 @@ jobs:
      
      - name: Test TLS Setup
        run: |
-         docker exec client-container curl --cert /shared/client.crt \
-           --key /shared/client.key -k https://172.20.0.2
+         docker exec client-container curl -v --cert /shared/client.crt \
+           --key /shared/client.key -k https://server-container:443
      
      - name: Capture Traffic
        run: |
