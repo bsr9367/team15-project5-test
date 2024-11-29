@@ -17,6 +17,13 @@ jobs:
           docker ps
           docker logs server-container
           docker logs client-container
+		  
+	  - name: Debug Network
+	    run: |
+	      docker network inspect tls-net
+	      docker exec client-container cat /etc/hosts
+	      docker exec client-container nslookup server-container
+	      docker exec client-container ping -c 2 server-container
       
       - name: Test TLS Setup
         run: |
