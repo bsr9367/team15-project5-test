@@ -4,9 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile.server
     container_name: server-container
-    networks:
-      app_network:
-        ipv4_address: 172.20.0.2
     volumes:
       - shared:/shared
 
@@ -15,22 +12,10 @@ services:
       context: .
       dockerfile: Dockerfile.client
     container_name: client-container
-    networks:
-      app_network:
-        ipv4_address: 172.20.0.3
     volumes:
       - shared:/shared
     depends_on:
       - server
-
-networks:
-  app_network:
-    driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.20.0.0/16
-          gateway: 172.20.0.1
 
 volumes:
   shared:
