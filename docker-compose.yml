@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.server
-	  network: host
+      network: host
     container_name: server-container
     ports:
       - "443:443"
@@ -15,7 +15,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.client
-	  network: host
+      network: host
     container_name: client-container
     volumes:
       - shared:/shared
