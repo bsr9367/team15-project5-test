@@ -21,6 +21,11 @@ jobs:
           docker logs server-container
           docker logs client-container
           
+      - name: Install DNS Tools
+        run: |
+          docker exec client-container apt-get update
+          docker exec client-container apt-get install -y dnsutils iputils-ping net-tools
+          
       - name: Debug Network
         run: |
           docker network inspect tls-net
