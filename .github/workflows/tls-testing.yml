@@ -10,9 +10,6 @@ jobs:
      - name: Install Docker Compose
        run: sudo apt-get install -y docker-compose
      
-     - name: Create Network
-       run: docker network create compose_net --subnet=172.20.0.0/16 || true
-     
      - name: Build and Start Containers
        run: |
          docker compose build --no-cache
