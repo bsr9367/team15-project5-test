@@ -4,34 +4,34 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.server
-      network: host
     container_name: server-container
-    ports:
-      - "443:443"
     networks:
-      tls-net:
+      custom:
         ipv4_address: 172.20.0.2
+    volumes:
+      - shared:/shared
 
   client:
     build:
       context: .
       dockerfile: Dockerfile.client
-      network: host
     container_name: client-container
+    networks:
+      custom:
+        ipv4_address: 172.20.0.3
     volumes:
       - shared:/shared
     depends_on:
       - server
-    networks:
-      tls-net:
-        ipv4_address: 172.20.0.3
+
+networks:
+  custom:
+    name: custom
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
 
 volumes:
   shared:
-
-networks:
-  tls-net:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
