@@ -54,7 +54,7 @@ jobs:
          docker exec client-container curl -v --cert /shared/client.crt \
            --key /shared/client.key -k https://server-container
          sleep 2
-         docker exec client-container kill tcpdump
+         docker exec client-container pidof tcpdump | xargs docker exec client-container kill
          docker cp client-container:/shared/tls_handshake.pcap artifacts/pcap/
      
      - name: Upload Artifacts
