@@ -68,17 +68,17 @@ jobs:
           docker exec server-container bash -c 'echo "ssl_verify_client on;" >> /etc/nginx/conf.d/ssl.conf'
           docker exec server-container nginx -s reload
 
-      - name: mTLS Test Phase
-        run: |
-          docker exec client-container curl -v --cert /shared/client.crt \
-            --key /shared/client.key --cacert /shared/ca.crt https://server-container
+     - name: mTLS Test Phase
+       run: |
+         docker exec client-container curl -v --cert /shared/client.crt \
+           --key /shared/client.key --cacert /shared/ca.crt https://server-container
 
-      - name: Capture mTLS Traffic
-        run: |
-          docker exec client-container tcpdump -i any -w /shared/mtls_handshake.pcap &
-          sleep 2
-          docker exec client-container curl -v --cert /shared/client.crt \
-            --key /shared/client.key --cacert /shared/ca.crt https://server-container
-          sleep 2
-          docker exec client-container pidof tcpdump | xargs docker exec client-container kill
-          docker cp client-container:/shared/mtls_handshake.pcap artifacts/pcap/
+     - name: Capture mTLS Traffic
+       run: |
+         docker exec client-container tcpdump -i any -w /shared/mtls_handshake.pcap &
+         sleep 2
+         docker exec client-container curl -v --cert /shared/client.crt \
+           --key /shared/client.key --cacert /shared/ca.crt https://server-container
+         sleep 2
+         docker exec client-container pidof tcpdump | xargs docker exec client-container kill
+         docker cp client-container:/shared/mtls_handshake.pcap artifacts/pcap/
