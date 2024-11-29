@@ -59,9 +59,16 @@ jobs:
 
      - name: Enable mTLS   
        run: |
-         docker exec server-container bash -c 'echo "ssl_client_certificate /etc/nginx/ca/ca.crt;" >> /etc/nginx/conf.d/ssl.conf'
-         docker exec server-container bash -c 'echo "ssl_verify_client on;" >> /etc/nginx/conf.d/ssl.conf'
+         docker exec server-container bash -c 'echo "ssl_protocols TLSv1.3;
+         ssl_prefer_server_ciphers on;
+         ssl_client_certificate /etc/nginx/ca/ca.crt;
+         ssl_verify_client on;
+         ssl_ciphers TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256;" > /etc/nginx/conf.d/ssl.conf'
          docker exec server-container nginx -s reload
+         
+     - name: Copy CA Certificate
+       run: |
+         docker exec server-container cp /shared/ca.crt /etc/nginx/ca/
 
      - name: mTLS Test Phase
        run: |
