@@ -11,7 +11,12 @@ jobs:
         run: sudo apt-get install -y docker-compose-plugin
       
       - name: Build and Start Containers
-        run: docker compose up -d
+        run: |
+          docker compose build --no-cache
+          docker compose up -d
+          docker ps
+          docker logs server-container
+          docker logs client-container
       
       - name: Test TLS Setup
         run: |
