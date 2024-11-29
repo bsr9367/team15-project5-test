@@ -1,0 +1,22 @@
+version: '3'
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: server-container
+    ports:
+      - "443:443"
+
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: client-container
+    volumes:
+      - shared:/shared
+    depends_on:
+      - server
+
+volumes:
+  shared:
