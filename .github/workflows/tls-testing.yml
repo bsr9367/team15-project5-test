@@ -1,0 +1,33 @@
+name: TLS Testing
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Build and Start Containers
+        run: docker-compose up -d
+      
+      - name: Test TLS Setup
+        run: |
+          docker exec client-container curl --cert /shared/client.crt \
+            --key /shared/client.key -k https://server-container
+      
+      - name: Capture Traffic
+        run: |
+          mkdir -p artifacts/pcap
+          docker exec client-container tcpdump -i any -w /shared/test.pcap &
+          sleep 2
+          docker exec client-container curl --cert /shared/client.crt \
+            --key /shared/client.key -k https://server-container
+          sleep 2
+          pkill tcpdump
+          docker cp client-container:/shared/test.pcap artifacts/pcap/
+      
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: artifacts/
