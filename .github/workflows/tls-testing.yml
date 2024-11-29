@@ -21,22 +21,22 @@ jobs:
           docker logs server-container
           docker logs client-container
           
-      - name: Install DNS Tools
-        run: |
-          docker exec client-container apt-get update
-          docker exec client-container apt-get install -y dnsutils iputils-ping net-tools
+#      - name: Install DNS Tools
+#        run: |
+#          docker exec client-container apt-get update
+#          docker exec client-container apt-get install -y dnsutils iputils-ping net-tools
           
       - name: Debug Network
         run: |
           docker network inspect tls-net
-          docker exec client-container cat /etc/hosts
-          docker exec client-container nslookup server-container
-          docker exec client-container ping -c 2 server-container
+#          docker exec client-container cat /etc/hosts
+#          docker exec client-container nslookup server-container
+          docker exec client-container ping -c 2 172.20.0.2
       
       - name: Test TLS Setup
         run: |
           docker exec client-container curl --cert /shared/client.crt \
-            --key /shared/client.key -k https://server-container
+            --key /shared/client.key -k https://172.20.0.2
       
       - name: Capture Traffic
         run: |
