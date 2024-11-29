@@ -12,8 +12,10 @@ RUN echo "<html><head><title>TLS Project Test Page</title></head>\
 # Previous content remains same until certificate generation
 RUN openssl ecparam -genkey -name secp384r1 -out /etc/nginx/certs/server.key && \
     openssl req -x509 -new -nodes -key /etc/nginx/certs/server.key -sha256 -days 365 -out /etc/nginx/certs/server.crt -subj '/CN=server-container' && \
-    cp /etc/nginx/certs/server.crt /shared/ && \
-    cp /etc/nginx/certs/server.key /shared/
+    openssl ecparam -genkey -name secp384r1 -out /etc/nginx/certs/client.key && \
+    openssl req -x509 -new -nodes -key /etc/nginx/certs/client.key -sha256 -days 365 -out /etc/nginx/certs/client.crt -subj '/CN=client-container' && \
+    cp /etc/nginx/certs/client.crt /shared/ && \
+    cp /etc/nginx/certs/client.key /shared/
 
 # Basic TLS config
 RUN echo "ssl_protocols TLSv1.3;" > /etc/nginx/conf.d/ssl.conf
