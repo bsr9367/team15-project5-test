@@ -57,8 +57,28 @@ jobs:
          docker exec client-container pidof tcpdump | xargs docker exec client-container kill
          docker cp client-container:/shared/tls_handshake.pcap artifacts/pcap/
      
-     - name: Upload Artifacts
+     - name: Upload TLS Artifacts
        uses: actions/upload-artifact@v3
        with:
-         name: test-results
+         name: tls-results
          path: artifacts/
+         
+        run: |
+          docker exec server-container bash -c 'echo "ssl_client_certificate /etc/nginx/ca/ca.crt;" >> /etc/nginx/conf.d/ssl.conf'
+          docker exec server-container bash -c 'echo "ssl_verify_client on;" >> /etc/nginx/conf.d/ssl.conf'
+          docker exec server-container nginx -s reload
+
+      - name: mTLS Test Phase
+        run: |
+          docker exec client-container curl -v --cert /shared/client.crt \
+            --key /shared/client.key --cacert /shared/ca.crt https://server-container
+
+      - name: Capture mTLS Traffic
+        run: |
+          docker exec client-container tcpdump -i any -w /shared/mtls_handshake.pcap &
+          sleep 2
+          docker exec client-container curl -v --cert /shared/client.crt \
+            --key /shared/client.key --cacert /shared/ca.crt https://server-container
+          sleep 2
+          docker exec client-container pidof tcpdump | xargs docker exec client-container kill
+          docker cp client-container:/shared/mtls_handshake.pcap artifacts/pcap/
