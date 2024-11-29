@@ -7,5 +7,5 @@ RUN mkdir /shared
 VOLUME ["/shared"]
 CMD tail -f /dev/null
 
-COPY --from=server-container /shared/client.crt /shared/
-COPY --from=server-container /shared/client.key /shared/
+# COPY --from=server-container /shared/client.crt /shared/
+# COPY --from=server-container /shared/client.key /shared/
