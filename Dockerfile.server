@@ -9,8 +9,11 @@ RUN echo "<html><head><title>TLS Project Test Page</title></head>\
 <p>This page is served over TLS 1.3 with ECC certificates.</p></body></html>" > /var/www/html/index.html
 
 # Generate server certificate only
+# Previous content remains same until certificate generation
 RUN openssl ecparam -genkey -name secp384r1 -out /etc/nginx/certs/server.key && \
-    openssl req -x509 -new -nodes -key /etc/nginx/certs/server.key -sha256 -days 365 -out /etc/nginx/certs/server.crt -subj '/CN=server-container'
+    openssl req -x509 -new -nodes -key /etc/nginx/certs/server.key -sha256 -days 365 -out /etc/nginx/certs/server.crt -subj '/CN=server-container' && \
+    cp /etc/nginx/certs/server.crt /shared/ && \
+    cp /etc/nginx/certs/server.key /shared/
 
 # Basic TLS config
 RUN echo "ssl_protocols TLSv1.3;" > /etc/nginx/conf.d/ssl.conf
