@@ -56,6 +56,9 @@ jobs:
          sleep 2
          docker exec client-container pidof tcpdump | xargs docker exec client-container kill
          docker cp client-container:/shared/tls_handshake.pcap artifacts/pcap/
+         
+     - name: Check Current NGINX config
+       run: docker exec server-container cat /etc/nginx/conf.d/ssl.conf
 
      - name: Enable mTLS   
        run: |
