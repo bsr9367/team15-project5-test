@@ -28,5 +28,5 @@ volumes:
   shared:
 
 networks:
-  tls-network:
+  tls-net:
     driver: bridge
