@@ -9,6 +9,9 @@ jobs:
       
       - name: Install Docker Compose
         run: sudo apt-get install -y docker-compose
+        
+      - name: Create Network
+        run: docker network create tls-net || true
       
       - name: Build and Start Containers
         run: |
