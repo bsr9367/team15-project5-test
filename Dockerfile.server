@@ -38,4 +38,4 @@ ssl_verify_client on;\n\
 include /etc/nginx/conf.d/ssl.conf;' /etc/nginx/sites-available/default
 
 # Start NGINX in foreground
-CMD ["nginx", "-g", "daemon off;"]
+# CMD ["nginx", "-g", "daemon off;"]
