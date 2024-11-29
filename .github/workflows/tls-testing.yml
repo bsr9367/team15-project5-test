@@ -23,7 +23,7 @@ jobs:
      - name: Debug Network
        run: |
          docker network ls
-         docker network inspect app_network
+         docker network inspect team15-project5-test_app_network
          docker exec client-container cat /etc/hosts
          docker inspect server-container | grep IPAddress
          docker exec client-container ping -c 2 $(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' server-container)
