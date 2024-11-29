@@ -46,16 +46,17 @@ jobs:
          docker exec client-container curl -v --cert /shared/client.crt \
            --key /shared/client.key -k https://server-container:443
      
-     - name: Capture Traffic
+     - name: Capture TLS Traffic
        run: |
          mkdir -p artifacts/pcap
-         docker exec client-container tcpdump -i any -w /shared/test.pcap &
+         docker exec client-container tcpdump -i any -w /shared/tls_handshake.pcap &
+         TCPDUMP_PID=$!
          sleep 2
-         docker exec client-container curl --cert /shared/client.crt \
-           --key /shared/client.key -k https://172.20.0.2
+         docker exec client-container curl -v --cert /shared/client.crt \
+           --key /shared/client.key -k https://server-container
          sleep 2
-         pkill tcpdump
-         docker cp client-container:/shared/test.pcap artifacts/pcap/
+         docker exec client-container kill $TCPDUMP_PID
+         docker cp client-container:/shared/tls_handshake.pcap artifacts/pcap/
      
      - name: Upload Artifacts
        uses: actions/upload-artifact@v3
