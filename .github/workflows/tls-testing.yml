@@ -25,13 +25,13 @@ jobs:
          docker compose up -d
          docker ps
          docker network ls
-         docker inspect server-container | grep IPAddress
          docker inspect client-container | grep IPAddress
+         docker inspect server-container | grep IPAddress
      
      - name: Debug Network
        run: |
          docker network ls
-         docker network inspect team15-project5-test_app_network
+         docker network inspect team15-project5-test_default
          docker exec client-container cat /etc/hosts
          docker inspect server-container | grep IPAddress
          docker exec client-container ping -c 2 172.20.0.2
