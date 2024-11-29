@@ -35,7 +35,12 @@ jobs:
          docker exec client-container cat /etc/hosts
          docker inspect server-container | grep IPAddress
          docker exec client-container ping -c 2 server-container
-     
+         
+     - name: Check Shared Volume
+       run: |
+         docker exec client-container ls -la /shared/
+         docker exec server-container ls -la /shared/
+         
      - name: Test TLS Setup
        run: |
          docker exec client-container curl -v --cert /shared/client.crt \
