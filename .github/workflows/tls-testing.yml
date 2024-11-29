@@ -57,14 +57,22 @@ jobs:
          docker exec client-container pidof tcpdump | xargs docker exec client-container kill
          docker cp client-container:/shared/tls_handshake.pcap artifacts/pcap/
          
-     - name: Check Current NGINX config
-       run: docker exec server-container cat /etc/nginx/conf.d/ssl.conf
+     - name: Create CA Directory
+       run: docker exec server-container mkdir -p /etc/nginx/ca
+
+     - name: Generate CA Certificate
+       run: |
+         docker exec server-container openssl req -x509 -new -nodes \
+           -keyout /etc/nginx/ca/ca.key -out /etc/nginx/ca/ca.crt \
+           -subj "/CN=MyCA" -days 365
 
      - name: Enable mTLS   
        run: |
-         docker exec server-container bash -c 'echo "
+         docker exec server-container bash -c 'cat > /etc/nginx/conf.d/ssl.conf << EOF
+         ssl_protocols TLSv1.3;
          ssl_client_certificate /etc/nginx/ca/ca.crt;
-         ssl_verify_client on;" >> /etc/nginx/conf.d/ssl.conf'
+         ssl_verify_client on;
+         EOF'
          docker exec server-container nginx -s reload
          
      - name: Copy CA Certificate
