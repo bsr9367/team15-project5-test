@@ -60,7 +60,7 @@ jobs:
      - name: Enable mTLS   
        run: |
          docker exec server-container bash -c '
-         cat > /etc/nginx/conf.d/ssl.conf << EOL
+         cat > /etc/nginx/conf.d/ssl.conf << EOF
          ssl_prefer_server_ciphers on;
          ssl_client_certificate /etc/nginx/ca/ca.crt;
          ssl_verify_client on;
