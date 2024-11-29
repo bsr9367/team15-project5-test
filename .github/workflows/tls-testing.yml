@@ -44,7 +44,7 @@ jobs:
      - name: Test TLS Setup
        run: |
          docker exec client-container curl -v --cert /shared/client.crt \
-           --key /shared/client.key -k https://server-container:443
+           --key /shared/client.key -k https://server-container
      
      - name: Capture TLS Traffic
        run: |
@@ -56,17 +56,12 @@ jobs:
          sleep 2
          docker exec client-container pidof tcpdump | xargs docker exec client-container kill
          docker cp client-container:/shared/tls_handshake.pcap artifacts/pcap/
-     
-     - name: Upload TLS Artifacts
-       uses: actions/upload-artifact@v3
-       with:
-         name: tls-results
-         path: artifacts/
-         
-        run: |
-          docker exec server-container bash -c 'echo "ssl_client_certificate /etc/nginx/ca/ca.crt;" >> /etc/nginx/conf.d/ssl.conf'
-          docker exec server-container bash -c 'echo "ssl_verify_client on;" >> /etc/nginx/conf.d/ssl.conf'
-          docker exec server-container nginx -s reload
+
+     - name: Enable mTLS   
+       run: |
+         docker exec server-container bash -c 'echo "ssl_client_certificate /etc/nginx/ca/ca.crt;" >> /etc/nginx/conf.d/ssl.conf'
+         docker exec server-container bash -c 'echo "ssl_verify_client on;" >> /etc/nginx/conf.d/ssl.conf'
+         docker exec server-container nginx -s reload
 
      - name: mTLS Test Phase
        run: |
