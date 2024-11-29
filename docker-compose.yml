@@ -4,23 +4,25 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.server
+	  network: host
     container_name: server-container
     ports:
       - "443:443"
     networks:
-      - tls-network
+      - tls-net
 
   client:
     build:
       context: .
       dockerfile: Dockerfile.client
+	  network: host
     container_name: client-container
     volumes:
       - shared:/shared
     depends_on:
       - server
     networks:
-      - tls-network
+      - tls-net
 
 volumes:
   shared:
