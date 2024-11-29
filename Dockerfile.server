@@ -21,17 +21,12 @@ RUN openssl ecparam -genkey -name secp384r1 -out /etc/nginx/ca/ca.key && \
     cp /etc/nginx/certs/client.key /shared
 
 # Configure NGINX SSL
-RUN echo "ssl_protocols TLSv1.3;\n\
-ssl_prefer_server_ciphers on;\n\
-ssl_ciphers TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256;" > /etc/nginx/conf.d/ssl.conf
+RUN echo "ssl_protocols TLSv1.3;" > /etc/nginx/conf.d/ssl.conf
 
 RUN sed -i '/listen 80 default_server;/a\
     listen 443 ssl;\n\
     ssl_certificate /etc/nginx/certs/server.crt;\n\
-    ssl_certificate_key /etc/nginx/certs/server.key;\n\
-    ssl_client_certificate /etc/nginx/ca/ca.crt;\n\
-    ssl_verify_client on;\n\
-    include /etc/nginx/conf.d/ssl.conf;' /etc/nginx/sites-available/default
+    ssl_certificate_key /etc/nginx/certs/server.key;' /etc/nginx/sites-available/default
 
 EXPOSE 80 443
 
