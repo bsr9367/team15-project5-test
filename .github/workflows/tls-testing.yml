@@ -62,9 +62,11 @@ jobs:
 
      - name: Generate CA Certificate
        run: |
-         docker exec server-container openssl req -x509 -new -nodes \
-           -keyout /etc/nginx/ca/ca.key -out /etc/nginx/ca/ca.crt \
-           -subj "/CN=MyCA" -days 365
+         docker exec server-container bash -c '
+         cd /etc/nginx/ca &&
+         openssl genrsa -out ca.key 4096 &&
+         openssl req -x509 -new -nodes -key ca.key -sha256 -days 365 -out ca.crt -subj "/CN=MyCA" &&
+         cp ca.crt /shared/'
 
      - name: Enable mTLS   
        run: |
