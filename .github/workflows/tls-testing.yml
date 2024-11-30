@@ -155,20 +155,17 @@ jobs:
        run: |
          docker exec server-container bash -c '
          cd /etc/nginx/easy-rsa
-         echo "yes" | ./easyrsa revoke client-container
-         ./easyrsa gen-crl
-         mkdir -p /etc/nginx/ssl
-         cp pki/crl.pem /etc/nginx/ssl/
+         echo "yes" | ./easyrsa revoke client-container &&
+         ./easyrsa gen-crl &&
+         mkdir -p /etc/nginx/ssl &&
+         cp pki/crl.pem /etc/nginx/ssl/ &&
          cat > /etc/nginx/conf.d/ssl.conf << EOF
-         ssl_protocols TLSv1.3;
          ssl_certificate /etc/nginx/certs/server.crt;
          ssl_certificate_key /etc/nginx/certs/server.key;
          ssl_client_certificate /etc/nginx/ca/ca.crt;
          ssl_crl /etc/nginx/ssl/crl.pem;
          ssl_verify_client on;
          ssl_verify_depth 1;
-         ssl_verify_client_post_handshake off;
-         ssl_reject_handshake on;
          EOF'
          docker exec server-container nginx -s reload
          
