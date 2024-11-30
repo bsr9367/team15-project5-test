@@ -92,18 +92,30 @@ jobs:
      - name: Setup EasyRSA
        run: |
          docker exec server-container bash -c '
-         mkdir /etc/nginx/easy-rsa
+         # Initialize easy-rsa
+         mkdir -p /etc/nginx/easy-rsa
          cp -r /usr/share/easy-rsa/* /etc/nginx/easy-rsa/
          cd /etc/nginx/easy-rsa
+
+         # Initialize PKI
          ./easyrsa init-pki
-         echo "set_var EASYRSA_ALGO ec" > vars
-         echo "set_var EASYRSA_DIGEST sha512" >> vars
-         echo "set_var EASYRSA_CURVE secp384r1" >> vars
-         ./easyrsa build-ca nopass
-         ./easyrsa gen-req server-container nopass
-         ./easyrsa sign-req server server-container
-         ./easyrsa gen-req client-container nopass
-         ./easyrsa sign-req client client-container
+
+         # Configure for ECC
+         cat > vars << EOF
+         set_var EASYRSA_ALGO ec
+         set_var EASYRSA_DIGEST sha512
+         set_var EASYRSA_CURVE secp384r1
+         EOF
+
+         # Build CA and generate certificates
+         printf "MyCA\n" | ./easyrsa build-ca nopass
+         printf "server-container\n" | ./easyrsa gen-req server-container nopass
+         echo "yes" | ./easyrsa sign-req server server-container
+         printf "client-container\n" | ./easyrsa gen-req client-container nopass
+         echo "yes" | ./easyrsa sign-req client client-container
+
+         # Copy certificates to appropriate locations
+         mkdir -p /etc/nginx/ca /etc/nginx/certs
          cp pki/ca.crt /etc/nginx/ca/
          cp pki/issued/server-container.crt /etc/nginx/certs/server.crt
          cp pki/private/server-container.key /etc/nginx/certs/server.key
