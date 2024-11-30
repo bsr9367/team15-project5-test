@@ -151,9 +151,30 @@ jobs:
          sleep 2
          docker exec client-container pidof tcpdump | xargs docker exec client-container kill
 
-     - name: Revoke Client Cert
+     - name: Revoke Client Certificate
        run: |
          docker exec server-container bash -c '
          cd /etc/nginx/easy-rsa
-         ./easyrsa revoke client-container
-         ./easyrsa gen-crl'
+         echo "yes" | ./easyrsa revoke client-container
+         ./easyrsa gen-crl
+         cp pki/crl.pem /etc/nginx/
+         echo "ssl_crl /etc/nginx/crl.pem;" >> /etc/nginx/conf.d/ssl.conf'
+         docker exec server-container nginx -s reload
+
+     - name: Generate New Client Certificate
+       run: |
+         docker exec server-container bash -c '
+         cd /etc/nginx/easy-rsa
+         printf "client-container-new\n" | ./easyrsa gen-req client-container-new nopass
+         echo "yes" | ./easyrsa sign-req client client-container-new
+         cp pki/issued/client-container-new.crt /shared/client.crt
+         cp pki/private/client-container-new.key /shared/client.key'
+
+     - name: Test New Certificate
+       run: |
+         docker exec client-container tcpdump -i any -w /shared/mtls_new_cert.pcap &
+         sleep 2
+         docker exec client-container curl -v --cert /shared/client.crt \
+           --key /shared/client.key --cacert /shared/ca.crt -k https://server-container
+         sleep 2
+         docker exec client-container pidof tcpdump | xargs docker exec client-container kill
