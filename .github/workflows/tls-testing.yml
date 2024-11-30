@@ -132,10 +132,11 @@ jobs:
 
      - name: Test With Client Cert
        run: |
+         docker exec server-container cp /etc/nginx/ca/ca.crt /shared/
          docker exec client-container tcpdump -i any -w /shared/mtls_success.pcap &
          sleep 2
          docker exec client-container curl -v --cert /shared/client.crt \
-           --key /shared/client.key --cacert /etc/nginx/ca/ca.crt https://server-container
+           --key /shared/client.key --cacert /shared/ca.crt https://server-container
          sleep 2
          docker exec client-container pidof tcpdump | xargs docker exec client-container kill
 
