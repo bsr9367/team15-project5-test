@@ -160,6 +160,15 @@ jobs:
          cp pki/crl.pem /etc/nginx/
          echo "ssl_crl /etc/nginx/crl.pem;" >> /etc/nginx/conf.d/ssl.conf'
          docker exec server-container nginx -s reload
+         
+     - name: Test Revoked Certificate
+       run: |
+         docker exec client-container tcpdump -i any -w /shared/mtls_revoked.pcap &
+         sleep 2
+         docker exec client-container curl -v --cert /shared/client.crt \
+           --key /shared/client.key --cacert /shared/ca.crt -k https://server-container || true
+         sleep 2
+         docker exec client-container pidof tcpdump | xargs docker exec client-container kill
 
      - name: Generate New Client Certificate
        run: |
