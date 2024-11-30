@@ -55,6 +55,7 @@ jobs:
           docker exec client-container pidof tcpdump || echo "tcpdump not running"
           docker exec client-container ls -l /shared/
           docker cp client-container:/shared/tls_handshake.pcap artifacts/pcap/
+          ls -l artifacts/pcap
 
       # mTLS Configuration (Steps 6-7)
       - name: Install and Setup Easy-RSA
