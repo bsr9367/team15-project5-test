@@ -153,9 +153,6 @@ jobs:
           docker exec client-container pidof tcpdump | xargs docker exec client-container kill
           docker exec client-container killall tcpdump || true
           docker cp client-container:/shared/mtls_new_cert.pcap artifacts/pcap/
-          
-      - name: Verify Artifacts Directory and Files
-        run: ls -l artifacts/pcap
 
       - name: Fix Permissions on Artifacts
         run: chmod -R 777 artifacts/pcap
