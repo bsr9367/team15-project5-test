@@ -7,6 +7,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
+      - name: Create Artifacts Directory
+        run: mkdir -p artifacts/pcap
+      
       # Setup (Steps 1-3)
       - name: Install Docker Compose
         run: sudo apt-get install -y docker-compose
@@ -141,3 +144,9 @@ jobs:
           sleep 2
           docker exec client-container pidof tcpdump | xargs docker exec client-container kill
           docker cp client-container:/shared/mtls_new_cert.pcap artifacts/pcap/
+          
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose down -v
+          docker system prune -f
