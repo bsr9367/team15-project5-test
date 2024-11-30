@@ -2,218 +2,138 @@ name: TLS Testing
 on: [push, pull_request]
 
 jobs:
- test:
-   runs-on: ubuntu-latest
-   steps:
-     - uses: actions/checkout@v3
-     
-     - name: Install Docker Compose
-       run: sudo apt-get install -y docker-compose
-     
-     - name: Build and Start Containers
-       run: |
-         docker compose build --no-cache
-         docker compose up -d
-     
-     - name: Install DNS Tools
-       run: |
-         docker exec client-container apt-get update
-         docker exec client-container apt-get install -y dnsutils iputils-ping net-tools
-         
-     - name: Basic Container Test
-       run: |
-         docker compose up -d
-         docker ps
-         docker network ls
-         docker inspect client-container | grep IPAddress
-         docker inspect server-container | grep IPAddress
-     
-     - name: Debug Network
-       run: |
-         docker network ls
-         docker network inspect team15-project5-test_default
-         docker exec client-container cat /etc/hosts
-         docker inspect server-container | grep IPAddress
-         docker exec client-container ping -c 2 server-container
-         
-     - name: Check Shared Volume
-       run: |
-         docker exec client-container ls -la /shared/
-         docker exec server-container ls -la /shared/
-         
-     - name: Test TLS Setup
-       run: |
-         docker exec client-container curl -v --cert /shared/client.crt \
-           --key /shared/client.key -k https://server-container
-     
-     - name: Capture TLS Traffic
-       run: |
-         mkdir -p artifacts/pcap
-         docker exec client-container tcpdump -i any -w /shared/tls_handshake.pcap &
-         sleep 2
-         docker exec client-container curl -v --cert /shared/client.crt \
-           --key /shared/client.key -k https://server-container
-         sleep 2
-         docker exec client-container pidof tcpdump | xargs docker exec client-container kill
-         docker cp client-container:/shared/tls_handshake.pcap artifacts/pcap/
-         
-     - name: Create CA Directory
-       run: docker exec server-container mkdir -p /etc/nginx/ca
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      # Setup (Steps 1-3)
+      - name: Install Docker Compose
+        run: sudo apt-get install -y docker-compose
+      
+      - name: Build and Start Containers
+        run: |
+          docker compose build --no-cache
+          docker compose up -d
+      
+      - name: Install Required Tools
+        run: |
+          docker exec client-container apt-get update
+          docker exec client-container apt-get install -y dnsutils iputils-ping net-tools
+      
+      # Verify Basic Connectivity
+      - name: Test Network Connectivity
+        run: |
+          docker network ls
+          docker network inspect team15-project5-test_default
+          docker exec client-container ping -c 2 server-container
 
-     - name: Generate CA Certificate
-       run: |
-         docker exec server-container bash -c '
-         cd /etc/nginx/ca &&
-         openssl genrsa -out ca.key 4096 &&
-         openssl req -x509 -new -nodes -key ca.key -sha256 -days 365 -out ca.crt -subj "/CN=MyCA" &&
-         cp ca.crt /shared/'
+      # TLS Configuration (Steps 4-5)
+      - name: Setup TLS
+        run: |
+          docker exec server-container bash -c '
+          mkdir -p /etc/nginx/certs
+          cat > /etc/nginx/conf.d/ssl.conf << EOF
+          ssl_protocols TLSv1.3;
+          ssl_certificate /etc/nginx/certs/server.crt;
+          ssl_certificate_key /etc/nginx/certs/server.key;
+          EOF'
 
-     - name: Enable mTLS   
-       run: |
-         docker exec server-container bash -c 'cat > /etc/nginx/conf.d/ssl.conf << EOF
-         ssl_protocols TLSv1.3;
-         ssl_client_certificate /etc/nginx/ca/ca.crt;
-         ssl_verify_client on;
-         EOF'
-         docker exec server-container nginx -s reload
-         
-     - name: Copy CA Certificate
-       run: |
-         docker exec server-container cp /shared/ca.crt /etc/nginx/ca/
+      - name: Capture TLS Traffic
+        run: |
+          mkdir -p artifacts/pcap
+          docker exec client-container tcpdump -i any -w /shared/tls_handshake.pcap &
+          sleep 2
+          docker exec client-container curl -v -k https://server-container
+          sleep 2
+          docker exec client-container pidof tcpdump | xargs docker exec client-container kill
+          docker cp client-container:/shared/tls_handshake.pcap artifacts/pcap/
 
-#     - name: mTLS Test Phase
-#       run: |
-#         docker exec client-container curl -v --cert /shared/client.crt \
-#           --key /shared/client.key --cacert /shared/ca.crt https://server-container
+      # mTLS Configuration (Steps 6-7)
+      - name: Install and Setup Easy-RSA
+        run: |
+          docker exec server-container apt-get install -y easy-rsa
+          docker exec server-container bash -c '
+          mkdir -p /etc/nginx/easy-rsa
+          cp -r /usr/share/easy-rsa/* /etc/nginx/easy-rsa/
+          cd /etc/nginx/easy-rsa
+          ./easyrsa init-pki
+          cat > vars << EOF
+          set_var EASYRSA_ALGO ec
+          set_var EASYRSA_DIGEST sha512
+          set_var EASYRSA_CURVE secp384r1
+          EOF
+          printf "MyCA\n" | ./easyrsa build-ca nopass
+          printf "server-container\n" | ./easyrsa gen-req server-container nopass
+          echo "yes" | ./easyrsa sign-req server server-container
+          printf "client-container\n" | ./easyrsa gen-req client-container nopass
+          echo "yes" | ./easyrsa sign-req client client-container
+          mkdir -p /etc/nginx/ca /etc/nginx/certs
+          cp pki/ca.crt /etc/nginx/ca/
+          cp pki/issued/server-container.crt /etc/nginx/certs/server.crt
+          cp pki/private/server-container.key /etc/nginx/certs/server.key
+          cp pki/issued/client-container.crt /shared/client.crt
+          cp pki/private/client-container.key /shared/client.key'
 
-     - name: Install easy-rsa
-       run: docker exec server-container apt-get install -y easy-rsa
+      - name: Test mTLS Without Client Cert
+        run: |
+          docker exec client-container tcpdump -i any -w /shared/mtls_fail.pcap &
+          sleep 2
+          docker exec client-container curl -v https://server-container || true
+          sleep 2
+          docker exec client-container pidof tcpdump | xargs docker exec client-container kill
 
-     - name: Setup EasyRSA
-       run: |
-         docker exec server-container bash -c '
-         # Initialize easy-rsa
-         mkdir -p /etc/nginx/easy-rsa
-         cp -r /usr/share/easy-rsa/* /etc/nginx/easy-rsa/
-         cd /etc/nginx/easy-rsa
+      - name: Test mTLS With Client Cert
+        run: |
+          docker exec client-container tcpdump -i any -w /shared/mtls_success.pcap &
+          sleep 2
+          docker exec client-container curl -v --cert /shared/client.crt \
+            --key /shared/client.key --cacert /shared/ca.crt -k https://server-container
+          sleep 2
+          docker exec client-container pidof tcpdump | xargs docker exec client-container kill
 
-         # Initialize PKI
-         ./easyrsa init-pki
+      # Certificate Revocation (Step 8)
+      - name: Revoke Client Certificate
+        run: |
+          docker exec server-container bash -c '
+          cd /etc/nginx/easy-rsa
+          echo "yes" | ./easyrsa revoke client-container
+          ./easyrsa gen-crl
+          cp pki/crl.pem /etc/nginx/certs/
+          cat > /etc/nginx/conf.d/ssl.conf << EOF
+          ssl_protocols TLSv1.3;
+          ssl_certificate /etc/nginx/certs/server.crt;
+          ssl_certificate_key /etc/nginx/certs/server.key;
+          ssl_client_certificate /etc/nginx/ca/ca.crt;
+          ssl_crl /etc/nginx/certs/crl.pem;
+          ssl_verify_client on;
+          ssl_verify_depth 1;
+          EOF'
+          docker exec server-container nginx -s reload
 
-         # Configure for ECC
-         cat > vars << EOF
-         set_var EASYRSA_ALGO ec
-         set_var EASYRSA_DIGEST sha512
-         set_var EASYRSA_CURVE secp384r1
-         EOF
+      - name: Test With Revoked Certificate
+        run: |
+          docker exec client-container tcpdump -i any -w /shared/mtls_revoked.pcap &
+          sleep 2
+          docker exec client-container curl -v --cert /shared/client.crt \
+            --key /shared/client.key --cacert /shared/ca.crt -k https://server-container || true
+          sleep 2
+          docker exec client-container pidof tcpdump | xargs docker exec client-container kill
 
-         # Build CA and generate certificates
-         printf "MyCA\n" | ./easyrsa build-ca nopass
-         printf "server-container\n" | ./easyrsa gen-req server-container nopass
-         echo "yes" | ./easyrsa sign-req server server-container
-         printf "client-container\n" | ./easyrsa gen-req client-container nopass
-         echo "yes" | ./easyrsa sign-req client client-container
+      - name: Issue New Client Certificate
+        run: |
+          docker exec server-container bash -c '
+          cd /etc/nginx/easy-rsa
+          printf "client-container-new\n" | ./easyrsa gen-req client-container-new nopass
+          echo "yes" | ./easyrsa sign-req client client-container-new
+          cp pki/issued/client-container-new.crt /shared/client.crt
+          cp pki/private/client-container-new.key /shared/client.key'
 
-         # Copy certificates to appropriate locations
-         mkdir -p /etc/nginx/ca /etc/nginx/certs
-         cp pki/ca.crt /etc/nginx/ca/
-         cp pki/issued/server-container.crt /etc/nginx/certs/server.crt
-         cp pki/private/server-container.key /etc/nginx/certs/server.key
-         cp pki/issued/client-container.crt /shared/client.crt
-         cp pki/private/client-container.key /shared/client.key'
-
-     - name: Test Without Client Cert
-       run: |
-         docker exec client-container tcpdump -i any -w /shared/mtls_fail.pcap &
-         sleep 2
-         docker exec client-container curl -v https://server-container || true
-         sleep 2
-         docker exec client-container pidof tcpdump | xargs docker exec client-container kill
-
-     - name: Configure NGINX for mTLS
-       run: |
-         docker exec server-container bash -c '
-         cat > /etc/nginx/conf.d/ssl.conf << EOF
-         ssl_protocols TLSv1.3;
-         ssl_certificate /etc/nginx/certs/server.crt;
-         ssl_certificate_key /etc/nginx/certs/server.key;
-         ssl_client_certificate /etc/nginx/ca/ca.crt;
-         ssl_verify_client on;
-         EOF'
-         docker exec server-container nginx -s reload
-
-     - name: Test With Client Cert
-       run: |
-         docker exec client-container tcpdump -i any -w /shared/mtls_success.pcap &
-         sleep 2
-         docker exec client-container curl -v --cert /shared/client.crt \
-           --key /shared/client.key --cacert /shared/ca.crt -k https://server-container
-         sleep 2
-         docker exec client-container pidof tcpdump | xargs docker exec client-container kill
-         
-     - name: Configure CRL
-       run: |
-         docker exec server-container bash -c '
-         cd /etc/nginx/easy-rsa &&
-         ./easyrsa gen-crl &&
-         cp pki/crl.pem /etc/nginx/certs/ &&
-         chmod 644 /etc/nginx/certs/crl.pem &&
-         cat > /etc/nginx/conf.d/ssl.conf << EOF
-         ssl_protocols TLSv1.3;
-         ssl_certificate /etc/nginx/certs/server.crt;
-         ssl_certificate_key /etc/nginx/certs/server.key;
-         ssl_client_certificate /etc/nginx/ca/ca.crt;
-         ssl_crl /etc/nginx/certs/crl.pem;
-         ssl_verify_client on;
-         ssl_verify_depth 1;
-         ssl_crl_check_leaf on;
-         EOF'
-         docker exec server-container nginx -s reload
-
-     - name: Verify CRL Location
-       run: docker exec server-container ls -l /etc/nginx/certs/crl.pem
-
-     - name: Revoke Client Certificate
-       run: |
-         docker exec server-container bash -c '
-         cd /etc/nginx/easy-rsa
-         echo "yes" | ./easyrsa revoke client-container &&
-         ./easyrsa gen-crl &&
-         cat > /etc/nginx/conf.d/ssl.conf << EOF
-         ssl_certificate /etc/nginx/certs/server.crt;
-         ssl_certificate_key /etc/nginx/certs/server.key;
-         ssl_client_certificate /etc/nginx/ca/ca.crt;
-         ssl_crl /etc/nginx/easy-rsa/pki/crl.pem;
-         ssl_verify_client on;
-         ssl_verify_depth 1;
-         ssl_stapling on;
-         ssl_stapling_verify on;
-         EOF'
-         docker exec server-container nginx -s reload
-         
-     - name: Test Revoked Certificate
-       run: |
-         docker exec client-container tcpdump -i any -w /shared/mtls_revoked.pcap &
-         sleep 2
-         docker exec client-container curl -v --cert /shared/client.crt \
-           --key /shared/client.key --cacert /shared/ca.crt -k https://server-container || true
-         sleep 2
-         docker exec client-container pidof tcpdump | xargs docker exec client-container kill
-
-     - name: Generate New Client Certificate
-       run: |
-         docker exec server-container bash -c '
-         cd /etc/nginx/easy-rsa
-         printf "client-container-new\n" | ./easyrsa gen-req client-container-new nopass
-         echo "yes" | ./easyrsa sign-req client client-container-new
-         cp pki/issued/client-container-new.crt /shared/client.crt
-         cp pki/private/client-container-new.key /shared/client.key'
-
-     - name: Test New Certificate
-       run: |
-         docker exec client-container tcpdump -i any -w /shared/mtls_new_cert.pcap &
-         sleep 2
-         docker exec client-container curl -v --cert /shared/client.crt \
-           --key /shared/client.key --cacert /shared/ca.crt -k https://server-container
-         sleep 2
-         docker exec client-container pidof tcpdump | xargs docker exec client-container kill
+      - name: Test With New Certificate
+        run: |
+          docker exec client-container tcpdump -i any -w /shared/mtls_new_cert.pcap &
+          sleep 2
+          docker exec client-container curl -v --cert /shared/client.crt \
+            --key /shared/client.key --cacert /shared/ca.crt -k https://server-container
+          sleep 2
+          docker exec client-container pidof tcpdump | xargs docker exec client-container kill
