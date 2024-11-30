@@ -130,13 +130,24 @@ jobs:
          sleep 2
          docker exec client-container pidof tcpdump | xargs docker exec client-container kill
 
+     - name: Configure NGINX for mTLS
+       run: |
+         docker exec server-container bash -c '
+         cat > /etc/nginx/conf.d/ssl.conf << EOF
+         ssl_protocols TLSv1.3;
+         ssl_certificate /etc/nginx/certs/server.crt;
+         ssl_certificate_key /etc/nginx/certs/server.key;
+         ssl_client_certificate /etc/nginx/ca/ca.crt;
+         ssl_verify_client on;
+         EOF'
+         docker exec server-container nginx -s reload
+
      - name: Test With Client Cert
        run: |
-         docker exec server-container cp /etc/nginx/ca/ca.crt /shared/
          docker exec client-container tcpdump -i any -w /shared/mtls_success.pcap &
          sleep 2
          docker exec client-container curl -v --cert /shared/client.crt \
-           --key /shared/client.key --cacert /shared/ca.crt https://server-container
+           --key /shared/client.key --cacert /shared/ca.crt -k https://server-container
          sleep 2
          docker exec client-container pidof tcpdump | xargs docker exec client-container kill
 
