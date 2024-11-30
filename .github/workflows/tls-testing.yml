@@ -154,13 +154,19 @@ jobs:
      - name: Configure CRL
        run: |
          docker exec server-container bash -c '
+         cd /etc/nginx/easy-rsa &&
+         ./easyrsa gen-crl &&
+         cp pki/crl.pem /etc/nginx/certs/ &&
+         chmod 644 /etc/nginx/certs/crl.pem &&
          cat > /etc/nginx/conf.d/ssl.conf << EOF
+         ssl_protocols TLSv1.3;
          ssl_certificate /etc/nginx/certs/server.crt;
          ssl_certificate_key /etc/nginx/certs/server.key;
          ssl_client_certificate /etc/nginx/ca/ca.crt;
          ssl_crl /etc/nginx/certs/crl.pem;
          ssl_verify_client on;
          ssl_verify_depth 1;
+         ssl_crl_check_leaf on;
          EOF'
          docker exec server-container nginx -s reload
 
