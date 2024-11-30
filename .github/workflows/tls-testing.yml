@@ -86,12 +86,50 @@ jobs:
          docker exec client-container curl -v --cert /shared/client.crt \
            --key /shared/client.key --cacert /shared/ca.crt https://server-container
 
-     - name: Capture mTLS Traffic
+     - name: Install easy-rsa
+       run: docker exec server-container apt-get install -y easy-rsa
+
+     - name: Setup EasyRSA
        run: |
-         docker exec client-container tcpdump -i any -w /shared/mtls_handshake.pcap &
+         docker exec server-container bash -c '
+         mkdir /etc/nginx/easy-rsa
+         cp -r /usr/share/easy-rsa/* /etc/nginx/easy-rsa/
+         cd /etc/nginx/easy-rsa
+         ./easyrsa init-pki
+         echo "set_var EASYRSA_ALGO ec" > vars
+         echo "set_var EASYRSA_DIGEST sha512" >> vars
+         echo "set_var EASYRSA_CURVE secp384r1" >> vars
+         ./easyrsa build-ca nopass
+         ./easyrsa gen-req server-container nopass
+         ./easyrsa sign-req server server-container
+         ./easyrsa gen-req client-container nopass
+         ./easyrsa sign-req client client-container
+         cp pki/ca.crt /etc/nginx/ca/
+         cp pki/issued/server-container.crt /etc/nginx/certs/server.crt
+         cp pki/private/server-container.key /etc/nginx/certs/server.key
+         cp pki/issued/client-container.crt /shared/client.crt
+         cp pki/private/client-container.key /shared/client.key'
+
+     - name: Test Without Client Cert
+       run: |
+         docker exec client-container tcpdump -i any -w /shared/mtls_fail.pcap &
          sleep 2
-         docker exec client-container curl -v --cert /shared/client.crt \
-           --key /shared/client.key --cacert /shared/ca.crt https://server-container
+         docker exec client-container curl -v https://server-container || true
          sleep 2
          docker exec client-container pidof tcpdump | xargs docker exec client-container kill
-         docker cp client-container:/shared/mtls_handshake.pcap artifacts/pcap/
+
+     - name: Test With Client Cert
+       run: |
+         docker exec client-container tcpdump -i any -w /shared/mtls_success.pcap &
+         sleep 2
+         docker exec client-container curl -v --cert /shared/client.crt \
+           --key /shared/client.key --cacert /etc/nginx/ca/ca.crt https://server-container
+         sleep 2
+         docker exec client-container pidof tcpdump | xargs docker exec client-container kill
+
+     - name: Revoke Client Cert
+       run: |
+         docker exec server-container bash -c '
+         cd /etc/nginx/easy-rsa
+         ./easyrsa revoke client-container
+         ./easyrsa gen-crl'
